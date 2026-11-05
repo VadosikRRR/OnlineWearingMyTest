@@ -1,0 +1,67 @@
+{
+  "upstream": "https://github.com/lizhi-ntu/KGI",
+  "checkout_commit": "22c65d56650e7d7943582355cd39360f6166e089",
+  "origin": "Local codes/KGI snapshot; downstream adaptations described in THIRD_PARTY.md",
+  "files": [
+    {
+      "path": "src/online_wearing/vendor/kg.py",
+      "sha256": "7239adcdc96e56f1f20b5f2934a5cbee7abca5e04c85539be93d4788792e7b12",
+      "source": "codes_kg/models/semgcn.py",
+      "source_sha256": "fbffc5e7a8d70ccba4e7124cd56174895183cc494212f8673a3104bdacc7b2dc"
+    },
+    {
+      "path": "src/online_wearing/vendor/pg.py",
+      "sha256": "a572910e14a693f62d052eb932f6439c671256ab3c771c64f5a59ce7826a446b",
+      "source": "codes_pg/networks_pg.py",
+      "source_sha256": "b3ff5940641ab46c806e71c93947359ff4bcdbc92e5b56ba239aa256c2186400"
+    },
+    {
+      "path": "src/online_wearing/conditioning.py",
+      "sha256": "9bb3dbbf9180aeaddc27ed39369d4b099fb89239abf68e27ac82fc196e498159",
+      "source": "generate_demo.py",
+      "source_sha256": "0340416f3c1a30e02f3746724c8984d2e39b7de99bcb183a0caa13dc8f2bb395"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/fp16_util.py",
+      "sha256": "68850f367ef744285ec6f9afc6e982226cea676889a40fc2a725b4b3073d75a7",
+      "source": "codes_demo/guided_diffusion/fp16_util.py",
+      "source_sha256": "739d3a3c40692aaa076de7a469ce8037f0d5a3e060bb969f24e7e3271fd9b239"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/gaussian_diffusion.py",
+      "sha256": "dede99efb44fcdd3f3e35441768044e17d9d618d7544fc961862c75d2f6b4aea",
+      "source": "codes_demo/guided_diffusion/gaussian_diffusion.py",
+      "source_sha256": "dede99efb44fcdd3f3e35441768044e17d9d618d7544fc961862c75d2f6b4aea"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/nn.py",
+      "sha256": "21e83dff00fa7b8992d714c5e75d288213b62990d563488b583b65774322856a",
+      "source": "codes_demo/guided_diffusion/nn.py",
+      "source_sha256": "d9547fb22b421a16dc079cb82a9d98630100b5e1b2a710d343f4d3f90b8661f3"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/respace.py",
+      "sha256": "d8522fbf905285527fde91947744762f5a97d1f92f2d8018c54730e0bd39d135",
+      "source": "codes_demo/guided_diffusion/respace.py",
+      "source_sha256": "d8522fbf905285527fde91947744762f5a97d1f92f2d8018c54730e0bd39d135"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/scheduler.py",
+      "sha256": "35ea6246e87b4cf0ac4e53a572aac8c9ec9902110ff220ffeb0b73141eb4bec4",
+      "source": "codes_demo/guided_diffusion/scheduler.py",
+      "source_sha256": "35ea6246e87b4cf0ac4e53a572aac8c9ec9902110ff220ffeb0b73141eb4bec4"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/script_util.py",
+      "sha256": "2f38a2766bd561c10b51e34d16ad01a2a9b2725066c1a633d5a327792aab91d2",
+      "source": "codes_demo/guided_diffusion/script_util.py",
+      "source_sha256": "2f38a2766bd561c10b51e34d16ad01a2a9b2725066c1a633d5a327792aab91d2"
+    },
+    {
+      "path": "src/online_wearing/vendor/sci/unet.py",
+      "sha256": "b4730a89f0b95f402e80c3fb1ab41871a9f2a2ec7dd716c4ae900375e1821cd7",
+      "source": "codes_demo/guided_diffusion/unet.py",
+      "source_sha256": "b4730a89f0b95f402e80c3fb1ab41871a9f2a2ec7dd716c4ae900375e1821cd7"
+    }
+  ]
+}
