@@ -27,7 +27,9 @@ GarmentIQ и OpenPose используются через PyPI, SCHP — чер�
 
 1. Опубликуйте эти файлы в своём `VadosikRRR/OnlineWearingMyTest` либо прикрепите
    архив к Kaggle и укажите `LOCAL_CODE` в ноутбуке. Изменения локальные, push не выполнялся.
-2. Прикрепите шесть файлов весов как Kaggle Dataset: [файлы и ссылки](docs/weights.md).
+2. Прикрепите три файла KGI (KG/PG/SCI) как Kaggle Dataset: [файлы и ссылки](docs/weights.md).
+   HRNet/OpenPose/SCHP ноутбук скачает с Hugging Face; для локального режима всех шести
+   файлов есть `DOWNLOAD_AUX_FROM_HF=False`.
 3. Импортируйте [ноутбук](notebooks/kaggle_kgi_end_to_end.ipynb), оставьте Accelerator **None**,
    включите Internet для установки/streaming, задайте `WEIGHTS_ROOT`.
 4. Выполните установку, CPU-проверки и просмотр препроцессинга.
@@ -36,8 +38,11 @@ GarmentIQ и OpenPose используются через PyPI, SCHP — чер�
 6. Включите `RUN_BATCH` для 1000 записей. Журнал позволяет продолжить прогон;
    для новой сессии сохраните output и задайте `PREVIOUS_RUN`.
 
-Требуется Python **3.11+**. Ноутбук использует текущий kernel Kaggle и проверяет его
-версию; он не заменяет системный Python. Фактическое окружение сохраняется в `environment.txt`.
+Целевая CPU-сессия Kaggle использует **Python 3.13.18** (по проверке пользователя).
+Минимум пакета остаётся Python **3.11+**; понижать Python не требуется.
+Ноутбук использует текущий kernel. Фактические версии сохраняются в `runtime.json`
+и `environment.txt`. Pillow 13 разрешён; после pip проверяется, не остались ли
+в памяти модули другой версии. [Исправление UnidentifiedImageError](docs/troubleshooting.md).
 Оригинальные настройки SCI — 50 шагов с 10 RePaint-повторами: это существенно больше
 50 вызовов сети. Прогон 1k может потребовать нескольких сессий; время/VRAM пока не измерены.
 Для первого smoke run предусмотрены 10 шагов и 1 повтор, с другой папкой эксперимента.
@@ -139,4 +144,7 @@ online-wearing evaluate --weights weights.json --manifest data/fitvto_eval_1k/ma
 
 `weights.json` содержит шесть ключей `Weights`, как в Python-примере.
 Ноутбук также создаёт этот JSON. Его исходный генератор — `scripts/build_notebook.py`.
+`UPDATE_CODE=True` обновляет существующий чистый checkout до выбранного `REPO_REF`;
+при локальных изменениях он останавливается, сохраняя их. Для закреплённой офлайн-копии
+можно установить `UPDATE_CODE=False`.
 Веса, датасеты, результаты и окружение в git не включаются.

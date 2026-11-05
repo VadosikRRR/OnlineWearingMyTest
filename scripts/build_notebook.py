@@ -19,12 +19,13 @@ def code(text):
 markdown("""
 # OnlineWearing: KGI от двух фотографий до результата
 
-**Kaggle, Python 3.11+. Accelerator: None. Internet: On** для клонирования, установки
+**Kaggle CPU: Python 3.13 (в проверяемой сессии 3.13.18). Accelerator: None. Internet: On** для клонирования, установки
 и загрузки только 1000 записей FITVTO. Этот notebook сам GPU не включает.
 Устройство задаётся только `DEVICE` при создании `OnlineWearingPipeline`.
 
 Цепочка: GarmentIQ HRNet → OpenPose → SCHP LIP-20 → KGI KG → PG → TPS → SCI.
-Внешние репозитории моделей не клонируются. Шесть файлов весов загрузите как Kaggle Dataset.
+Внешние репозитории моделей не клонируются. Три веса KGI прикрепите как Kaggle Dataset;
+HRNet/OpenPose/SCHP по умолчанию скачиваются отдельными файлами с Hugging Face.
 Список файлов и ссылки: `docs/weights.md` в репозитории.
 
 Это восстановленный **базовый** KGI: маски/сопоставления требуют визуальной проверки.
@@ -44,14 +45,16 @@ import shutil
 import subprocess
 import sys
 
-assert sys.version_info >= (3, 11), "Select a Kaggle Python 3.11+ runtime"
+assert sys.version_info >= (3, 11), "Python 3.11+ is required; the Kaggle CPU target is Python 3.13"
 WORK = Path("/kaggle/working")
 WORK.mkdir(parents=True, exist_ok=True)
 REPO = WORK / "OnlineWearingMyTest"
 REPO_URL = "https://github.com/VadosikRRR/OnlineWearingMyTest.git"
 REPO_REF = "main"  # Better: use a published commit SHA for a reproducible run.
+UPDATE_CODE = True  # Fetch the selected ref in an existing clean checkout too.
 LOCAL_CODE = None  # Alternative: Path('/kaggle/input/onlinewearing-code/OnlineWearingMyTest')
 WEIGHTS_ROOT = Path("/kaggle/input/onlinewearing-weights")  # Edit your Kaggle input mount.
+DOWNLOAD_AUX_FROM_HF = True  # False: load the three auxiliary weights from WEIGHTS_ROOT instead.
 EXISTING_SUBSET = None  # Alternative: Path('/kaggle/input/my-fitvto-1k/fitvto_eval_1k')
 PREVIOUS_RUN = None  # Optional: saved run directory from an earlier session.
 
@@ -85,9 +88,12 @@ if not (REPO / "pyproject.toml").is_file():
         shutil.copytree(LOCAL_CODE, REPO, dirs_exist_ok=True)
     else:
         subprocess.run(["git", "clone", "--depth", "1", REPO_URL, str(REPO)], check=True)
-        if REPO_REF != "main":
-            subprocess.run(["git", "-C", str(REPO), "fetch", "--depth", "1", "origin", REPO_REF], check=True)
-            subprocess.run(["git", "-C", str(REPO), "checkout", "--detach", "FETCH_HEAD"], check=True)
+if LOCAL_CODE is None and (REPO / ".git").exists() and UPDATE_CODE:
+    dirty = subprocess.check_output(["git", "-C", str(REPO), "status", "--porcelain"], text=True)
+    if dirty.strip():
+        raise RuntimeError("The code checkout has local changes. Save them or set UPDATE_CODE=False; nothing was overwritten.")
+    subprocess.run(["git", "-C", str(REPO), "fetch", "--depth", "1", "origin", REPO_REF], check=True)
+    subprocess.run(["git", "-C", str(REPO), "checkout", "--detach", "FETCH_HEAD"], check=True)
 assert (REPO / "src/online_wearing/pipeline.py").is_file(), "Clone/upload the completed implementation first"
 if (REPO / ".git").exists():
     print("Code commit:", subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip())
@@ -99,34 +105,61 @@ markdown("""
 GarmentIQ закреплён на `0.0.4.11`, controlnet-aux — на `0.0.10`. pip согласует зависимости
 PyTorch/torchvision; фактические версии сохраняются. Если Kaggle сообщает о необходимости
 перезапуска kernel после обновления бинарных библиотек, перезапустите его и повторите ячейки.
+Python не понижается до 3.11: используется текущий kernel, включая 3.13.18.
+Pillow 13 разрешён. После pip проверяются версии уже загруженных модулей и пакетов на диске.
+Если они разошлись, ячейка остановится с инструкцией перезапуска до работы с датасетом.
 """)
 code('''
 subprocess.run([sys.executable, "-m", "pip", "install", "-e", str(REPO)], check=True)
 sys.path.insert(0, str(REPO / "src"))  # Editable-install path is usable in this same kernel.
+from online_wearing.runtime import assert_runtime_matches_installed
+runtime = assert_runtime_matches_installed()
+(WORK / "runtime.json").write_text(json.dumps(runtime, indent=2))
+print("Runtime:", runtime)
 subprocess.run([sys.executable, str(REPO / "scripts/verify_static.py")], check=True)
 subprocess.run([sys.executable, str(REPO / "scripts/check_runtime.py")], check=True)
 freeze = subprocess.check_output([sys.executable, "-m", "pip", "freeze"], text=True)
 (WORK / "environment.txt").write_text(freeze)
 ''')
 markdown("""
-## 3. Все веса — локальные пути
+## 3. Три KGI-веса локально, три вспомогательных — с Hugging Face
 
-Положите файлы в `WEIGHTS_ROOT`, сохранив приведённую структуру, или измените каждый путь.
-Конструктор проверяет все шесть файлов. Здесь нет скрытого скачивания моделей.
-`scripts/download_aux_weights.py` — отдельный необязательный помощник для получения трёх
-вспомогательных весов с HF перед прикреплением к Kaggle. Для KG/PG/SCI нужны оригинальные веса KGI.
+Положите KG/PG/SCI в `WEIGHTS_ROOT`, сохранив приведённую структуру, или измените пути.
+HRNet/OpenPose/SCHP скачиваются этой ячейкой через `hf_hub_download`: только нужные файлы,
+без клонирования и без всего IDM-VTON. Ревизии источников сохраняются.
+Для полностью локального режима установите `DOWNLOAD_AUX_FROM_HF=False` и прикрепите все шесть весов.
+Конструктор по-прежнему принимает шесть локальных путей и сам ничего не скачивает.
 """)
 code('''
 from online_wearing import Weights, OnlineWearingPipeline
 
-weights = Weights(
+kgi_paths = dict(
     kg=WEIGHTS_ROOT / "kg/step_299999.pt",
     pg=WEIGHTS_ROOT / "pg/step_9999.pt",
     sci=WEIGHTS_ROOT / "sci/ema_0.9999_300000.pt",
+)
+missing = [str(path) for path in kgi_paths.values() if not path.is_file()]
+if missing:
+    raise FileNotFoundError("Attach the three KGI checkpoints first: " + ", ".join(missing))
+aux_paths = dict(
     garment_hrnet=WEIGHTS_ROOT / "hrnet.pth",
     openpose_body=WEIGHTS_ROOT / "body_pose_model.pth",
     human_parser_lip=WEIGHTS_ROOT / "parsing_lip.onnx",
 )
+if DOWNLOAD_AUX_FROM_HF:
+    from huggingface_hub import HfApi, hf_hub_download
+    sources = {
+        "garment_hrnet": ("lygitdata/garmentiq", "hrnet.pth"),
+        "openpose_body": ("lllyasviel/Annotators", "body_pose_model.pth"),
+        "human_parser_lip": ("yisol/IDM-VTON", "humanparsing/parsing_lip.onnx"),
+    }
+    downloaded = {}
+    for name, (repository, filename) in sources.items():
+        revision = HfApi().model_info(repository).sha
+        aux_paths[name] = hf_hub_download(repo_id=repository, filename=filename, revision=revision)
+        downloaded[name] = dict(repository=repository, filename=filename, revision=revision)
+    (WORK / "aux_weight_sources.json").write_text(json.dumps(downloaded, indent=2))
+weights = Weights(**kgi_paths, **aux_paths)
 weights.validate()
 for name, path in weights.as_dict().items():
     print(name, Path(path).stat().st_size // (1024 * 1024), "MiB", path)
@@ -282,6 +315,9 @@ landmark overlays и TPS-композиция. `metrics.jsonl` — журнал,
 code('''
 if RUN_DIR.exists():
     shutil.copy2(WORK / "environment.txt", RUN_DIR / "environment.txt")
+    shutil.copy2(WORK / "runtime.json", RUN_DIR / "runtime.json")
+    if (WORK / "aux_weight_sources.json").exists():
+        shutil.copy2(WORK / "aux_weight_sources.json", RUN_DIR / "aux_weight_sources.json")
     shutil.copy2(manifest.parent / "source.json", RUN_DIR / "dataset_source.json")
     if (REPO / ".git").exists():
         commit = subprocess.check_output(["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True).strip()
@@ -296,7 +332,7 @@ for index, cell in enumerate(cells):
     cell["id"] = f"kgi-{index:02d}"
 notebook = dict(nbformat=4, nbformat_minor=5, cells=cells,
                 metadata=dict(kernelspec=dict(display_name="Python 3", language="python", name="python3"),
-                              language_info=dict(name="python", version="3.11"),
+                              language_info=dict(name="python", version="3.13.18"),
                               kaggle=dict(accelerator="none", isGpuEnabled=False, isInternetEnabled=True,
                                           language="python", sourceType="notebook")))
 if __name__ == "__main__":

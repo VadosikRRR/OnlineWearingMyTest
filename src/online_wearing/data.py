@@ -10,6 +10,21 @@ from .contracts import MEASUREMENT_FIELDS, normalize_garment_type
 DATASET_ID = "Yuanhao-Harry-Wang/fitvto-100k"
 
 
+class DatasetImageDecodeError(ValueError):
+    """An image could not be decoded; includes its source row, column and header."""
+
+
+def describe_image_value(value):
+    """Small diagnostic, without logging an entire image or a huge bytes repr."""
+    payload = value.get("bytes") if isinstance(value, dict) else value
+    if isinstance(payload, (bytes, bytearray, memoryview)):
+        prefix = bytes(payload[:24])
+        return f"{type(value).__name__}, payload={len(payload)} bytes, prefix={prefix!r}"
+    if payload is None and isinstance(value, dict):
+        return f"dict, bytes=None, path={value.get('path')!r}"
+    return f"{type(value).__name__}, payload_type={type(payload).__name__}"
+
+
 def read_manifest(path):
     path = Path(path)
     with path.open(encoding="utf-8") as stream:
@@ -17,16 +32,25 @@ def read_manifest(path):
 
 
 def _image(value):
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, UnidentifiedImageError
     if isinstance(value, Image.Image):
         return ImageOps.exif_transpose(value).convert("RGB")
     if isinstance(value, dict):
         payload = value.get("bytes")
-        value = BytesIO(payload) if payload is not None else value.get("path")
+        value = payload if payload is not None else value.get("path")
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        value = BytesIO(bytes(value))
     if value is None:
         raise ValueError("Dataset image has neither bytes nor path")
-    with Image.open(value) as image:
-        return ImageOps.exif_transpose(image).convert("RGB")
+    try:
+        with Image.open(value) as image:
+            return ImageOps.exif_transpose(image).convert("RGB")
+    except UnidentifiedImageError:
+        # A common Kaggle failure: pip changed Pillow on disk while old Image and
+        # plugin modules remain in memory. Diagnose that before blaming the data.
+        from .runtime import assert_runtime_matches_installed
+        assert_runtime_matches_installed()
+        raise
 
 
 def export_rows(rows, output_dir, *, limit, default_garment_type, garment_types=None):
@@ -55,7 +79,15 @@ def export_rows(rows, output_dir, *, limit, default_garment_type, garment_types=
                 path = root / relative
                 if not path.exists():
                     temporary = path.with_suffix(".tmp.png")
-                    _image(row[key]).save(temporary)
+                    try:
+                        decoded = _image(row[key])
+                    except (OSError, ValueError, TypeError) as error:
+                        raise DatasetImageDecodeError(
+                            f"FITVTO sample {sample_id}, source_index={index}, column={key!r}: "
+                            f"{describe_image_value(row[key])}; {type(error).__name__}: {error}. "
+                            "No record was skipped; manifest.jsonl.partial retains completed rows."
+                        ) from error
+                    decoded.save(temporary)
                     temporary.replace(path)
                 else:
                     from PIL import Image

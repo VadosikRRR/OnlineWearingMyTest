@@ -1,9 +1,13 @@
 """Kaggle-only CPU contracts/TPS/forward smoke tests; no weights or network."""
 import numpy as np
 import torch
+from io import BytesIO
+from PIL import Image
 from types import SimpleNamespace
 from online_wearing.contracts import LIP_TO_KGI
 from online_wearing.preprocessing import lip_to_kgi, landmarks_to_kgi, HumanParser, HumanPose
+from online_wearing.data import _image
+from online_wearing.runtime import assert_runtime_matches_installed
 from online_wearing.pipeline import adjacency, one_hot
 from online_wearing.warping import inverse_tps
 from online_wearing.contracts import CONTOUR_EDGES, SYMMETRY_EDGES, POSE_EDGES
@@ -13,6 +17,11 @@ from online_wearing.vendor.sci.unet import UNetModel
 
 
 def main():
+    assert_runtime_matches_installed()
+    buffer = BytesIO()
+    Image.new("RGB", (4, 3), (20, 100, 230)).save(buffer, format="PNG")
+    image = _image({"bytes": buffer.getvalue(), "path": None})
+    assert image.size == (4, 3) and image.getpixel((0, 0)) == (20, 100, 230)
     labels = np.arange(20, dtype=np.uint8)[None]
     np.testing.assert_array_equal(lip_to_kgi(labels), np.array(LIP_TO_KGI)[None])
     points = np.array([[0, 0], [.999, 0], [0, .999], [.999, .999]], dtype=np.float32)
@@ -84,7 +93,7 @@ def main():
                         use_checkpoint=False, use_scale_shift_norm=True, resblock_updown=True).eval()
         result = sci(torch.zeros(1, 3, 64, 48), torch.tensor([1]), torch.zeros(1, 13, 64, 48))
         assert result.shape == (1, 6, 64, 48)
-    print("PASS: CPU LIP/ONNX/pose adapters, landmarks, TPS, KG/PG/SCI forward contracts")
+    print("PASS: Pillow PNG decode, CPU LIP/ONNX/pose adapters, landmarks, TPS, KG/PG/SCI forward contracts")
 
 
 if __name__ == "__main__":
